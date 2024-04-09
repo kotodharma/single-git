@@ -1,75 +1,59 @@
-I have been frustrated by the fact that git, in spite of its tremendous power and
-flexibility, is simply not designed to deal with "projects" that are comprised of
-only a single file, often in a directory along with a bunch of other individual text
-files that I might also like to revision independently of each other.
+Git was not designed for single-file projects, or managing multiple text files independently within a directory.
+However, this shell script works around it by creating a unique bare repository for each file, using a Git command to set a different location for each file's `.git` directory.
 
-"Just use RCS," you might say. Yeah, well, but... I like git, want to keep using it,
-to learn it better, and, well, RCS is just too ancient. Let's be serious.
+# Instructions
 
-So I finally sat down and wrote a shell script to handle this modus operandi.
-Basically, it creates a separate bare repo for each file, with a unique name, and
-takes advantage of the fact that git has a command line option to override the default
-repo directory name `.git`.
+Copy the script into a folder in `$PATH`, say as `~/bin/git1` (or `g1`), and mark it executable:
 
-This is written to run on UNIX and UNIX-like OSes. If you want to port it to
-Windows or whatever, be my guest. I've put it in the public domain, so you can do
-with it as you please. Pull requests accepted.
-
-## Instructions
-
-First, copy the script into your execution path. I hate the executable name `git1`,
-but haven't yet thought of something I like better. I encourage you to change it
-to whatever suits you. Just naming the executable file as you like will do the trick.
-
-Create a bare repo for the file you want to revision (e.g. **foo.txt**), by calling
-this script with the `init` subcommand (note that these are commands to the script,
-_not_ to git directly!):
+Use its `init` subcommand to create a bare repository for the target file (e.g., **foo.txt**).
+Note that these commands are for the *script*, not for *git* itself:
 
 ```
-  git1 init foo.txt
+  git1 foo.txt init
 ```
 
-You should see git output indicating successful repo creation. The file
-has also been checked in to the new repo. Needless to say, this step is only
-performed once, at the outset. The repo is named `.g1_` + the filename, so
-in this case `.g1_foo.txt`.
+You should see git output indicating successful repo creation.
+Perform this step only once, at the outset.
+The repository is named using the prefix `.g1_` followed by the filename;
+for instance, `.g1_foo.txt` for **foo.txt**.
 
-Now, you may call the present script with the filename as first argument,
-and follow with any normal git commands and options:
+To execute git commands for a specific file, use the script with the filename as the first argument, followed by standard git commands and options:
 
-```
+```sh
   git1 foo.txt status
   git1 foo.txt commit -m "added new blah"
   git1 foo.txt diff
   git1 foo.txt log
 ```
 
-etc.
+Since each bare repository is unique to its file, you can create multiple repositories in the same directory.
+Always use the file name as the first argument to specify the repository for git commands.
+Ensure you use this script within the directory containing both the file and its repository.
 
-Because the bare repo is unique to the file **foo.txt**, you can create as many
-of these as you like in the same directory, and commands will always have the
-revisioned filename as first argument, to distinguish which repo git should use.
-Note that this script can only be used from inside the same
-directory where the file and its repo exist.
+To remove a repository (this does not remove the tracked file):
 
-To see what repos exist in the current directory:
+```
+ git1 foo.txt rm
+```
+
+To list existing single-file repositories in the current directory:
 
 ```
  git1 ls
 ```
 
-To remove a repo (though this does NOT remove the tracked file):
-
-```
- git1 rm foo.txt
-```
-
-Protip: If you'll be doing a lot of git work on a given file at a particular
-time, considering creating a temporary alias for `git1 foo.txt`:
+Tip: For extensive git work on a file, create a temporary alias for `git1 foo.txt`:
 
 ```
  alias gg='git1 foo.txt'
 ```
 
-Then, commands can be simplified: `gg diff`, `gg commit`, etc.
+Then, you can simplify commands: `gg diff`, `gg commit`, etc.
 
+# Related
+
+For ready use in Vim, see [single-file-git.vim](https://github.com/konfekt/single-file-git.vim/).
+
+# Credits
+
+This repo forked [David J. Iannucci's single-file-git](https://github.com/kotodharma/single-file-git) to whom all credit shall be due and all license restrictions be duly respected.

@@ -1,81 +1,65 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+# - Initialize a file's repository with `git1 <filename> init`
+# - Remove a repo with `git1 <filename> deinit`, which
+#   does not delete the file itself
+# - Use `git1 <filename> <git-command>` for operations like status, commit, ...
+# - List all file-specific repos in the same directory with `git1 ls`
+#
+# For convenience, create a temporary alias like `alias gg='git1 foo.txt'` to
+# simplify repeated commands.
+
+set -o errtrace -o errexit -o nounset -o pipefail
+[[ "${TRACE:-0}" == "1" ]] && set -o xtrace
+
+shopt -s inherit_errexit
+IFS=$'\n\t'
+PS4='+\t '
+
+error_handler() {
+  echo >&2 "Error: In ${BASH_SOURCE[0]}, Lines $1 and $2, Command $3 exited with Status $4"
+  pr -tn "${BASH_SOURCE[0]}" | tail -n+$(($1 - 3)) | head -n7 | sed '4s/^\s*/>> /' >&2
+  exit "$4"
+}
+trap 'error_handler $LINENO "$BASH_LINENO" "$BASH_COMMAND" $?' ERR
+
 BANG='!'
-FILE="$1"
-if [ "$FILE" == "init" ]
-then
-    FILE="$2"
-    git init --quiet --bare ".g1_$FILE"
-    echo -e "*\n${BANG}$FILE" >> ".g1_$FILE/info/exclude"
-    git --git-dir=".g1_$FILE" --work-tree="." add "$FILE"
-    git --git-dir=".g1_$FILE" --work-tree="." commit -m "initial commit"
-    git --git-dir=".g1_$FILE" --work-tree="." status
-    echo "Repo created!"
-    exit
-fi
-if [ "$FILE" == "ls" ]
-then
-    ls -ld .g1_* 2>/dev/null | sed 's/.*g1_//'
-    exit
-fi
-if [ "$FILE" == "rm" ]
-then
-    FILE="$2"
-    rm -rf ".g1_$FILE"
-    exit
-fi
-if [ "$FILE" == "help" ]
-then
-    tail -n +2 `which $0` | grep '^#' | sed 's/^#//' | less
-    exit
-fi
+FILE="${1:-help}"
+
+case "$FILE" in
+  ls)
+    ls -ld .g1_* 2> /dev/null | sed 's/.*g1_//'
+    exit 0
+    ;;
+  help)
+    tail -n +2 "$(which "$0")" | grep '^#' | sed 's/^#//' | less
+    exit 0
+    ;;
+  *)
+    if ! [ -f "$FILE" ]; then
+      echo "$FILE" must exist! Exiting.
+      exit 1
+    fi
+    ;;
+esac
+
 shift
-git --git-dir=".g1_$FILE" --work-tree="." "$@"
-# To display this help:
-#
-#   git1 help
-#
-# CAUTION! Although the script may have been renamed, these docs use
-# the name 'git1', which is very close to 'git', but none of the commands
-# documented here call 'git' directly - they all call the script.
-#
-# TO GET STARTED: create a bare repo for the file you want to revision
-# (e.g. foo.txt), by calling this script with the 'init' subcommand. Needless
-# to say, this step is only performed once, for repo creation:
-#
-#   git1 init foo.txt
-#
-# You should see git output indicating successful repo creation. The file
-# has also been checked in to the new repo.
-#
-# NOW, you may call the present script with the filename as first argument,
-# and follow with any normal git commands and options:
-#
-#   git1 foo.txt status
-#   git1 foo.txt commit -am "added new blah"
-#   git1 foo.txt diff
-#   git1 foo.txt log
-# etc.
-#
-# Because the bare repo is unique to the file foo.txt, you can create as many
-# of these as you like in the same directory, and commands will always have the
-# revisioned filename as first argument, to distinguish which repo for git to
-# refer to. Note that this script can only be used from inside the same
-# directory where the file and its repo exist.
-#
-# To see what repos exist in the current directory:
-#
-#  git1 ls
-#
-# To remove a repo:
-#
-#  git1 rm foo.txt
-#
-# (Note: in spite of how it looks, this does NOT remove the tracked file!)
-#
-# Protip: If you'll be doing a lot of git work on a given file at a particular
-# time, considering creating a temporary alias for "git1 foo.txt":
-#
-#  alias gg='git1 foo.txt'
-#
-# Then, commands can be simplified: gg diff, gg commit, etc.
-#
+
+case "$1" in
+  init)
+    GIT_DIR=".g1_$FILE"
+    git init --quiet --bare "$GIT_DIR"
+    echo -e "*\n${BANG}$FILE" > "$GIT_DIR/info/exclude"
+    git --git-dir="$GIT_DIR" --work-tree="." add "$FILE"
+    git --git-dir="$GIT_DIR" --work-tree="." commit -m "initial commit"
+    git --git-dir="$GIT_DIR" --work-tree="." status
+    echo "Repo created!"
+    ;;
+  deinit)
+    FILE="$2"
+    rm -rI ".g1_$FILE"
+    ;;
+  *)
+    git --git-dir=".g1_$FILE" --work-tree="." "$@"
+    ;;
+esac
